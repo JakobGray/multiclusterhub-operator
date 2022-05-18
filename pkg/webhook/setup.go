@@ -19,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -52,22 +53,27 @@ func Setup(mgr manager.Manager) error {
 		return err
 	}
 
+	uncachedClient, err := client.New(ctrl.GetConfigOrDie(), client.Options{Scheme: mgr.GetScheme()})
+	if err != nil {
+		return fmt.Errorf("unable to create an uncached client during webhook setup: %w", err)
+	}
+
 	go func() {
 		log.Info("calling createOrUpdateWebhookService")
-		createOrUpdateWebhookService(mgr.GetClient(), ns)
+		createOrUpdateWebhookService(uncachedClient, ns)
 		log.Info("calling updateCertDir")
-		lastResourceVersion := updateCertDir(mgr.GetClient(), ns, "")
+		lastResourceVersion := updateCertDir(uncachedClient, ns, "")
 		log.Info("calling registerWebhook")
 		registerWebhook(mgr, ns)
 		log.Info("calling createOrUpdateValidatingWebhook")
-		createOrUpdateValidatingWebhook(mgr.GetClient(), ns, validatingPath, certDir)
+		createOrUpdateValidatingWebhook(uncachedClient, ns, validatingPath, certDir)
 
 		// Check for changes to the webhook secret every minute
 		ticker := time.NewTicker(time.Minute)
 		for {
 			select {
 			case <-ticker.C:
-				lastResourceVersion = updateCertDir(mgr.GetClient(), ns, lastResourceVersion)
+				lastResourceVersion = updateCertDir(uncachedClient, ns, lastResourceVersion)
 			}
 		}
 	}()

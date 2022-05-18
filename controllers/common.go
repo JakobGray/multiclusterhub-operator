@@ -599,7 +599,7 @@ func (r *MultiClusterHubReconciler) ensurePullSecret(m *operatorv1.MultiClusterH
 	if m.Spec.ImagePullSecret == "" {
 		// Delete imagepullsecret in MCE namespace if present
 		secretList := &corev1.SecretList{}
-		err := r.Client.List(
+		err := r.UncachedClient.List(
 			context.TODO(),
 			secretList,
 			client.MatchingLabels{
@@ -613,7 +613,7 @@ func (r *MultiClusterHubReconciler) ensurePullSecret(m *operatorv1.MultiClusterH
 		}
 		for i, secret := range secretList.Items {
 			r.Log.Info("Deleting imagePullSecret", "Name", secret.Name, "Namespace", secret.Namespace)
-			err = r.Client.Delete(context.TODO(), &secretList.Items[i])
+			err = r.UncachedClient.Delete(context.TODO(), &secretList.Items[i])
 			if err != nil {
 				r.Log.Error(err, fmt.Sprintf("Error deleting imagepullsecret: %s", secret.GetName()))
 				return ctrl.Result{Requeue: true}, err
@@ -624,7 +624,7 @@ func (r *MultiClusterHubReconciler) ensurePullSecret(m *operatorv1.MultiClusterH
 	}
 
 	pullSecret := &corev1.Secret{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{
+	err := r.UncachedClient.Get(context.TODO(), types.NamespacedName{
 		Name:      m.Spec.ImagePullSecret,
 		Namespace: m.Namespace,
 	}, pullSecret)
@@ -632,11 +632,14 @@ func (r *MultiClusterHubReconciler) ensurePullSecret(m *operatorv1.MultiClusterH
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	r.Log.Info(pullSecret.String())
+	// r.Log.Info("info", "apiversion", pullSecret.api)
+
 	mceSecret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: pullSecret.APIVersion,
-			Kind:       pullSecret.Kind,
-		},
+		// TypeMeta: metav1.TypeMeta{
+		// 	APIVersion: "v1",
+		// 	Kind:       "Secret",
+		// },
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pullSecret.Name,
 			Namespace: newNS,
@@ -650,7 +653,7 @@ func (r *MultiClusterHubReconciler) ensurePullSecret(m *operatorv1.MultiClusterH
 	addInstallerLabelSecret(mceSecret, m.Name, m.Namespace)
 
 	force := true
-	err = r.Client.Patch(context.TODO(), mceSecret, client.Apply, &client.PatchOptions{Force: &force, FieldManager: "multiclusterhub-operator"})
+	err = r.UncachedClient.Patch(context.TODO(), mceSecret, client.Apply, &client.PatchOptions{Force: &force, FieldManager: "multiclusterhub-operator"})
 	if err != nil {
 		r.Log.Info(fmt.Sprintf("Error applying pullSecret to mce namespace: %s", err.Error()))
 		return ctrl.Result{Requeue: true}, nil
@@ -668,7 +671,7 @@ func (r *MultiClusterHubReconciler) ensurePullSecretCreated(m *operatorv1.MultiC
 
 	pullSecret := &corev1.Secret{}
 
-	err := r.Client.Get(context.TODO(), types.NamespacedName{
+	err := r.UncachedClient.Get(context.TODO(), types.NamespacedName{
 		Name:      m.Spec.ImagePullSecret,
 		Namespace: m.Namespace,
 	}, pullSecret)
@@ -688,7 +691,7 @@ func (r *MultiClusterHubReconciler) OverrideImagesFromConfigmap(imageOverrides m
 	r.Log.Info(fmt.Sprintf("Overriding images from configmap: %s/%s", namespace, configmapName))
 
 	configmap := &corev1.ConfigMap{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{
+	err := r.UncachedClient.Get(context.TODO(), types.NamespacedName{
 		Name:      configmapName,
 		Namespace: namespace,
 	}, configmap)

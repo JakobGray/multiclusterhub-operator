@@ -105,7 +105,7 @@ func (r *MultiClusterHubReconciler) cleanupPullSecret(reqLogger logr.Logger, m *
 		},
 	}
 
-	err := r.Client.Delete(context.TODO(), secret)
+	err := r.UncachedClient.Delete(context.TODO(), secret)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("No matching secret to finalize. Continuing.")

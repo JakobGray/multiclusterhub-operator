@@ -147,9 +147,10 @@ var _ = Describe("MultiClusterHub controller", func() {
 		Expect(k8sClient).ToNot(BeNil())
 
 		reconciler := &MultiClusterHubReconciler{
-			Client: k8sClient,
-			Scheme: k8sManager.GetScheme(),
-			Log:    ctrl.Log.WithName("controllers").WithName("MultiClusterHub"),
+			Client:         k8sClient,
+			UncachedClient: k8sClient,
+			Scheme:         k8sManager.GetScheme(),
+			Log:            ctrl.Log.WithName("controllers").WithName("MultiClusterHub"),
 		}
 		Expect(reconciler.SetupWithManager(k8sManager)).Should(Succeed())
 

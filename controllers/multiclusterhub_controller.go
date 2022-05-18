@@ -67,10 +67,11 @@ import (
 
 // MultiClusterHubReconciler reconciles a MultiClusterHub object
 type MultiClusterHubReconciler struct {
-	Client    client.Client
-	CacheSpec CacheSpec
-	Scheme    *runtime.Scheme
-	Log       logr.Logger
+	Client         client.Client
+	UncachedClient client.Client
+	CacheSpec      CacheSpec
+	Scheme         *runtime.Scheme
+	Log            logr.Logger
 }
 
 var resyncPeriod = time.Second * 20
