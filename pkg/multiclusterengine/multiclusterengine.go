@@ -24,10 +24,13 @@ var (
 	packageName            = "multicluster-engine"
 	catalogSourceName      = "redhat-operators"
 	catalogSourceNamespace = "openshift-marketplace" // https://olm.operatorframework.io/docs/tasks/troubleshooting/subscription/#a-subscription-in-namespace-x-cant-install-operators-from-a-catalogsource-in-namespace-y
+	//Community MCE variables
+	communityChannel           = "community-2.1"
+	communityPackageName       = "stolostron-engine"
+	communityCatalogSourceName = "community-operators"
 
 	MulticlusterengineName = "multiclusterengine"
-
-	operatorGroupName = "default"
+	operatorGroupName      = "default"
 )
 
 func labels(m *operatorsv1.MultiClusterHub) map[string]string {
@@ -73,6 +76,17 @@ func GetSupportedAnnotations(m *operatorsv1.MultiClusterHub) map[string]string {
 
 // Subscription for the helm repo serving charts
 func Subscription(m *operatorsv1.MultiClusterHub, c *subv1alpha1.SubscriptionConfig) *subv1alpha1.Subscription {
+	community, err := operatorsv1.IsCommunity()
+	if err != nil {
+		community = true // community by default
+	}
+	chName, pkgName, catSourceName := channel, packageName, catalogSourceName
+	if community {
+		chName = communityChannel
+		pkgName = communityPackageName
+		catSourceName = communityCatalogSourceName
+	}
+
 	sub := &subv1alpha1.Subscription{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: subv1alpha1.SubscriptionCRDAPIVersion,
@@ -84,10 +98,10 @@ func Subscription(m *operatorsv1.MultiClusterHub, c *subv1alpha1.SubscriptionCon
 			Labels:    labels(m),
 		},
 		Spec: &subv1alpha1.SubscriptionSpec{
-			Channel:                channel,
+			Channel:                chName,
 			InstallPlanApproval:    installPlanApproval,
-			Package:                packageName,
-			CatalogSource:          catalogSourceName,
+			Package:                pkgName,
+			CatalogSource:          catSourceName,
 			CatalogSourceNamespace: catalogSourceNamespace,
 			Config:                 c,
 		},
