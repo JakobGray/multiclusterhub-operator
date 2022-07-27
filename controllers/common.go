@@ -52,6 +52,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+var mockMCHOperator = &appsv1.Deployment{}
+var mockMCESubscription = &subv1alpha1.Subscription{}
+
 // CacheSpec ...
 type CacheSpec struct {
 	IngressDomain    string
@@ -491,7 +494,6 @@ func (r *MultiClusterHubReconciler) ensureMultiClusterEngineCR(m *operatorv1.Mul
 	}
 	// If MCE then maintain InfrastructureCustomNamespace if present
 	if len(mceList.Items) == 1 {
-		r.Log.Info("Lets preserve that namespace!")
 		if mceList.Items[0].Spec.Overrides != nil && mceList.Items[0].Spec.Overrides.InfrastructureCustomNamespace != "" {
 			mce.Spec.Overrides.InfrastructureCustomNamespace = mceList.Items[0].Spec.Overrides.InfrastructureCustomNamespace
 		}
@@ -1368,25 +1370,29 @@ func (r *MultiClusterHubReconciler) ManagedByMCEExists() (*mcev1.MultiClusterEng
 }
 
 func (r *MultiClusterHubReconciler) GetSubConfig() (*subv1alpha1.SubscriptionConfig, error) {
-	configEnvVars := []corev1.EnvVar{}
 	found := &appsv1.Deployment{}
+	foundSubscription := &subv1alpha1.Subscription{}
+	if utils.IsUnitTest() {
+		found = mockMCHOperator
+		// foundSubscription = mockMCESubscription
+	}
 
 	namespace, err := utils.FindNamespace()
 	if err != nil {
 		return nil, err
 	}
 
-	err = r.Client.Get(context.TODO(), types.NamespacedName{
-		Name:      utils.MCHOperatorName,
-		Namespace: namespace,
-	}, found)
-
-	if err != nil {
-		return nil, err
+	if !utils.IsUnitTest() {
+		err = r.Client.Get(context.TODO(), types.NamespacedName{
+			Name:      utils.MCHOperatorName,
+			Namespace: namespace,
+		}, found)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	foundSubscription := &subv1alpha1.Subscription{}
-
+	configEnvVars := []corev1.EnvVar{}
 	proxyEnv := []corev1.EnvVar{}
 	if utils.ProxyEnvVarsAreSet() {
 		proxyEnv = []corev1.EnvVar{
@@ -1403,10 +1409,12 @@ func (r *MultiClusterHubReconciler) GetSubConfig() (*subv1alpha1.SubscriptionCon
 				Value: os.Getenv("NO_PROXY"),
 			},
 		}
+
 		err = r.Client.Get(context.TODO(), types.NamespacedName{
 			Name:      "multicluster-engine",
 			Namespace: utils.MCESubscriptionNamespace,
 		}, foundSubscription)
+
 		if err != nil && errors.IsNotFound(err) {
 			configEnvVars = proxyEnv
 		} else if err != nil {
@@ -1420,12 +1428,12 @@ func (r *MultiClusterHubReconciler) GetSubConfig() (*subv1alpha1.SubscriptionCon
 		}
 
 	}
+
 	return &subv1alpha1.SubscriptionConfig{
 		NodeSelector: found.Spec.Template.Spec.NodeSelector,
 		Tolerations:  found.Spec.Template.Spec.Tolerations,
 		Env:          configEnvVars,
 	}, nil
-
 }
 
 func (r *MultiClusterHubReconciler) pluginIsSupported(multiClusterHub *operatorv1.MultiClusterHub) bool {

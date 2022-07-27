@@ -708,7 +708,6 @@ func (r *MultiClusterHubReconciler) createTrustBundleConfigmap(ctx context.Conte
 		Name:      trustBundleName,
 		Namespace: trustBundleNamespace,
 	}
-	log.Info("using trust bundle configmap %s/%s", trustBundleNamespace, trustBundleName)
 
 	// Check if configmap exists
 	cm := &corev1.ConfigMap{}
@@ -739,6 +738,7 @@ func (r *MultiClusterHubReconciler) createTrustBundleConfigmap(ctx context.Conte
 			trustBundleName,
 		)
 	}
+	log.Info("Creating trust bundle configmap %s/%s", trustBundleNamespace, trustBundleName)
 	err = r.Client.Create(ctx, cm)
 	if err != nil {
 		// Error creating configmap
@@ -1044,25 +1044,9 @@ func (r *MultiClusterHubReconciler) setDefaults(m *operatorv1.MultiClusterHub) (
 	}
 
 	// If OCP 4.10+ then set then enable the MCE console. Else ensure it is disabled
-	clusterVersion := &configv1.ClusterVersion{}
-	err = r.Client.Get(ctx, types.NamespacedName{Name: "version"}, clusterVersion)
+	currentClusterVersion, err := r.getClusterVersion(ctx)
 	if err != nil {
-		log.Error(err, "Failed to detect clusterversion")
-		return ctrl.Result{}, err
-	}
-	currentClusterVersion := ""
-	if len(clusterVersion.Status.History) == 0 {
-		if !utils.IsUnitTest() {
-			log.Error(err, "Failed to detect status in clusterversion.status.history")
-			return ctrl.Result{}, err
-		}
-	}
-
-	if utils.IsUnitTest() {
-		// If unit test pass along a version, Can't set status in unit test
-		currentClusterVersion = "4.9.0"
-	} else {
-		currentClusterVersion = clusterVersion.Status.History[0].Version
+		return ctrl.Result{}, nil
 	}
 
 	// Set OCP version as env var, so that charts can render this value

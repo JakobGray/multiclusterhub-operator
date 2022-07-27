@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	MCHLookupKey = types.NamespacedName{Name: MulticlusterhubName, Namespace: MulticlusterhubNamespace}
+	// MCHLookupKey = types.NamespacedName{Name: MulticlusterhubName, Namespace: MulticlusterhubNamespace}
 	MCELookupKey = types.NamespacedName{Name: MultiClusterEngineName}
 )
 
