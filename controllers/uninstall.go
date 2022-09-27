@@ -108,6 +108,10 @@ var (
 				types.NamespacedName{Name: "cluster-lifecycle-sub", Namespace: m.Namespace},
 				schema.GroupVersionKind{Group: "apps.open-cluster-management.io", Kind: "Subscription", Version: "v1"},
 			),
+			newUnstructured(
+				types.NamespacedName{Name: "grc-sub", Namespace: m.Namespace},
+				schema.GroupVersionKind{Group: "apps.open-cluster-management.io", Kind: "Subscription", Version: "v1"},
+			),
 		}
 		return removals
 	}

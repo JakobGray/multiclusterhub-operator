@@ -23,6 +23,7 @@ import (
 	"github.com/stolostron/multiclusterhub-operator/pkg/utils"
 	resources "github.com/stolostron/multiclusterhub-operator/test/unit-tests"
 	searchv2v1alpha1 "github.com/stolostron/search-v2-operator/api/v1alpha1"
+	ocmapi "open-cluster-management.io/api/addon/v1alpha1"
 	appsub "open-cluster-management.io/multicloud-operators-subscription/pkg/apis"
 	appsubv1 "open-cluster-management.io/multicloud-operators-subscription/pkg/apis/apps/v1"
 
@@ -332,6 +333,7 @@ var _ = Describe("MultiClusterHub controller", func() {
 		Expect(configv1.AddToScheme(clientScheme)).Should(Succeed())
 		Expect(consolev1.AddToScheme(clientScheme)).Should(Succeed())
 		Expect(olmapi.AddToScheme(clientScheme)).Should(Succeed())
+		Expect(ocmapi.AddToScheme(clientScheme)).Should(Succeed())
 
 		k8sManager, err := ctrl.NewManager(clientConfig, ctrl.Options{
 			Scheme:                 clientScheme,
@@ -547,6 +549,18 @@ var _ = Describe("MultiClusterHub controller", func() {
 			By("Ensuring No CLC")
 
 			result, err = reconciler.ensureNoCLC(ctx, mch, testImages)
+			Expect(result).To(Equal(ctrl.Result{}))
+			Expect(err).To(BeNil())
+
+			By("Ensuring GRC")
+
+			result, err = reconciler.ensureGRC(ctx, mch, testImages)
+			Expect(result).To(Equal(ctrl.Result{}))
+			Expect(err).To(BeNil())
+
+			By("Ensuring No GRC")
+
+			result, err = reconciler.ensureNoGRC(ctx, mch, testImages)
 			Expect(result).To(Equal(ctrl.Result{}))
 			Expect(err).To(BeNil())
 		})
