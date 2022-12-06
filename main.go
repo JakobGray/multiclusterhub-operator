@@ -38,6 +38,8 @@ import (
 	promv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	corev1 "k8s.io/api/core/v1"
+
 	netv1 "github.com/openshift/api/config/v1"
 	consolev1 "github.com/openshift/api/operator/v1"
 	operatorv1 "github.com/stolostron/multiclusterhub-operator/api/v1"
@@ -134,6 +136,7 @@ func main() {
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "multicloudhub-operator-lock",
 		WebhookServer:           &ctrlwebhook.Server{TLSMinVersion: "1.2"},
+		ClientDisableCacheFor:   []client.Object{&corev1.Secret{}},
 		LeaderElectionNamespace: ns, // Uncomment this line to run operator locally. https://sdk.operatorframework.io/docs/building-operators/golang/advanced-topics/#leader-with-lease
 	})
 	if err != nil {
