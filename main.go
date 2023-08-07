@@ -78,7 +78,7 @@ import (
 )
 
 const (
-	crdName            = "multiclusterengines.multicluster.openshift.io"
+	crdName            = "multiclusterhubs.operator.open-cluster-management.io"
 	OperatorVersionEnv = "OPERATOR_VERSION"
 	NoCacheEnv         = "DISABLE_CLIENT_CACHE"
 )
@@ -261,11 +261,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO: Get Webhook Working. Some troubles w/ kubebuilder generation prevented me from
-	// creating the same webhook spec. May be able to get past this with Kustomize.
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-
-		if err = ensureWebhooks(uncachedClient, validatingPath); err != nil {
+		// https://book.kubebuilder.io/cronjob-tutorial/running.html#running-webhooks-locally, https://book.kubebuilder.io/multiversion-tutorial/webhooks.html#and-maingo
+		if err = ensureWebhooks(uncachedClient); err != nil {
 			setupLog.Error(err, "unable to ensure webhook", "webhook", "MultiClusterHub")
 			os.Exit(1)
 		}
@@ -275,11 +273,6 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
-	// err = webhook.Setup(mgr)
-	// if err != nil {
-	// 	setupLog.Error(err, "Failed to setup webhooks")
-	// }
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -411,7 +404,7 @@ func ensureCRD(mgr ctrl.Manager, crd *unstructured.Unstructured) error {
 	return nil
 }
 
-func ensureWebhooks(k8sClient client.Client, path string) error {
+func ensureWebhooks(k8sClient client.Client) error {
 	ctx := context.Background()
 
 	deploymentNamespace, ok := os.LookupEnv("POD_NAMESPACE")
@@ -420,18 +413,18 @@ func ensureWebhooks(k8sClient client.Client, path string) error {
 		os.Exit(1)
 	}
 
-	validatingWebhook := operatorv1.ValidatingWebhook(deploymentNamespace, path)
+	validatingWebhook := operatorv1.ValidatingWebhook(deploymentNamespace)
 
 	maxAttempts := 10
 	for i := 0; i < maxAttempts; i++ {
 		setupLog.Info("Applying ValidatingWebhookConfiguration")
 
-		// Get reference to MCE CRD to set as owner of the webhook
+		// Get reference to MCH CRD to set as owner of the webhook
 		// This way if the CRD is deleted the webhook will be removed with it
 		crdKey := types.NamespacedName{Name: crdName}
 		owner := &apixv1.CustomResourceDefinition{}
 		if err := k8sClient.Get(context.TODO(), crdKey, owner); err != nil {
-			setupLog.Error(err, "Failed to get MCE CRD")
+			setupLog.Error(err, "Failed to get MCH CRD")
 			time.Sleep(5 * time.Second)
 			continue
 		}

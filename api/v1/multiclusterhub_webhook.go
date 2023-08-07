@@ -36,12 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-const (
-	validatingCfgName     = "multiclusterhub-operator-validating-webhook"
-	validatingWebhookName = "multiclusterhub.validating-webhook.open-cluster-management.io"
-	resourceName          = "multiclusterhubs"
-)
-
 var (
 	blockDeletionResources = []struct {
 		Name           string
@@ -138,7 +132,7 @@ func (r *MultiClusterHub) ValidateCreate() error {
 	// Validate components
 	if r.Spec.Overrides != nil {
 		for _, c := range r.Spec.Overrides.Components {
-			if ValidComponent(c) {
+			if !ValidComponent(c) {
 				return fmt.Errorf("invalid component config: %s is not a known component", c.Name)
 			}
 		}
@@ -151,12 +145,7 @@ func (r *MultiClusterHub) ValidateCreate() error {
 func (r *MultiClusterHub) ValidateUpdate(old runtime.Object) error {
 	mchlog.Info("validate update", "name", r.Name)
 
-	if old == nil {
-		return nil
-	}
-
 	oldMCH := old.(*MultiClusterHub)
-	// current is 'r'
 
 	if oldMCH.Spec.SeparateCertificateManagement != r.Spec.SeparateCertificateManagement {
 		return fmt.Errorf("updating SeparateCertificateManagement is forbidden")
@@ -232,44 +221,61 @@ func (r *MultiClusterHub) ValidateDelete() error {
 	return nil
 }
 
-func ValidatingWebhook(namespace, path string) *admissionregistration.ValidatingWebhookConfiguration {
-	sideEffect := admissionregistration.SideEffectClassNone
-
+// ValidatingWebhook returns the ValidatingWebhookConfiguration used for the multiclusterhub
+// linked to a service in the provided namespace
+func ValidatingWebhook(namespace string) *admissionregistration.ValidatingWebhookConfiguration {
+	fail := admissionregistration.Fail
+	none := admissionregistration.SideEffectClassNone
+	path := "/validate-multicluster-openshift-io-v1-multiclusterengine"
 	return &admissionregistration.ValidatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "admissionregistration.k8s.io/v1",
 			Kind:       "ValidatingWebhookConfiguration",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        validatingCfgName,
+			Name:        "multiclusterhub-operator-validating-webhook",
 			Annotations: map[string]string{"service.beta.openshift.io/inject-cabundle": "true"},
 		},
-		Webhooks: []admissionregistration.ValidatingWebhook{{
-			AdmissionReviewVersions: []string{
-				"v1",
-				"v1beta1",
+		Webhooks: []admissionregistration.ValidatingWebhook{
+			{
+				AdmissionReviewVersions: []string{
+					"v1",
+					"v1beta1",
+				},
+				Name: "multiclusterhub.validating-webhook.open-cluster-management.io",
+				ClientConfig: admissionregistration.WebhookClientConfig{
+					Service: &admissionregistration.ServiceReference{
+						Name:      "multiclusterhub-operator-webhook",
+						Namespace: namespace,
+						Path:      &path,
+					},
+				},
+				FailurePolicy: &fail,
+				Rules: []admissionregistration.RuleWithOperations{
+					{
+						Rule: admissionregistration.Rule{
+							APIGroups:   []string{GroupVersion.Group},
+							APIVersions: []string{GroupVersion.Version},
+							Resources:   []string{"multiclusterhubs"},
+						},
+						Operations: []admissionregistration.OperationType{
+							admissionregistration.Create,
+							admissionregistration.Update,
+							admissionregistration.Delete,
+						},
+					},
+				},
+				SideEffects: &none,
 			},
-			ClientConfig: admissionregistration.WebhookClientConfig{
-				Service: &admissionregistration.ServiceReference{
-					Name:      WebhookServiceName,
-					Namespace: namespace,
-					Path:      &path,
-				},
-			},
-			Name: validatingWebhookName,
-			Rules: []admissionregistration.RuleWithOperations{{
-				Rule: admissionregistration.Rule{
-					APIGroups:   []string{GroupVersion.Group},
-					APIVersions: []string{GroupVersion.Version},
-					Resources:   []string{resourceName},
-				},
-				Operations: []admissionregistration.OperationType{
-					admissionregistration.Create,
-					admissionregistration.Update,
-					admissionregistration.Delete,
-				},
-			}},
-			SideEffects: &sideEffect,
-		}},
+		},
 	}
+}
+
+func contains(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
