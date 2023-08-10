@@ -169,7 +169,7 @@ func main() {
 	mgrOptions := ctrl.Options{
 		Scheme:                  scheme,
 		MetricsBindAddress:      metricsAddr,
-		Port:                    8443,
+		Port:                    9443,
 		HealthProbeBindAddress:  probeAddr,
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        "multicloudhub-operator-lock",

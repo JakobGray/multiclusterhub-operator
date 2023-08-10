@@ -103,7 +103,7 @@ func (r *MultiClusterHub) Default() {
 	mchlog.Info("default", "name", r.Name)
 }
 
-//+kubebuilder:webhook:name=multiclusterhub-operator-validating-webhook,path=/validate-v1-multiclusterhub,mutating=false,failurePolicy=fail,sideEffects=None,groups=operator.open-cluster-management.io,resources=multiclusterhubs,verbs=create;update;delete,versions=v1,name=multiclusterhub.validating-webhook.open-cluster-management.io,admissionReviewVersions={v1,v1beta1}
+//+kubebuilder:webhook:name=multiclusterhub-operator-validating-webhook,path=/validate-operator-open-cluster-management-io-v1-multiclusterhub,mutating=false,failurePolicy=fail,sideEffects=None,groups=operator.open-cluster-management.io,resources=multiclusterhubs,verbs=create;update;delete,versions=v1,name=multiclusterhub.validating-webhook.open-cluster-management.io,admissionReviewVersions={v1,v1beta1}
 
 var _ webhook.Validator = &MultiClusterHub{}
 
@@ -138,7 +138,7 @@ func (r *MultiClusterHub) ValidateCreate() error {
 		}
 	}
 
-	return fmt.Errorf("the MultiClusterHub CR already exists")
+	return nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
@@ -159,7 +159,7 @@ func (r *MultiClusterHub) ValidateUpdate(old runtime.Object) error {
 		return fmt.Errorf("hive updates are forbidden")
 	}
 
-	if AvailabilityConfigIsValid(r.Spec.AvailabilityConfig) && r.Spec.AvailabilityConfig != "" {
+	if (r.Spec.AvailabilityConfig != HABasic) && (r.Spec.AvailabilityConfig != HAHigh) && (r.Spec.AvailabilityConfig != "") {
 		return fmt.Errorf("invalid AvailabilityConfig given")
 	}
 
@@ -226,7 +226,7 @@ func (r *MultiClusterHub) ValidateDelete() error {
 func ValidatingWebhook(namespace string) *admissionregistration.ValidatingWebhookConfiguration {
 	fail := admissionregistration.Fail
 	none := admissionregistration.SideEffectClassNone
-	path := "/validate-multicluster-openshift-io-v1-multiclusterengine"
+	path := "/validate-operator-open-cluster-management-io-v1-multiclusterhub"
 	return &admissionregistration.ValidatingWebhookConfiguration{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "admissionregistration.k8s.io/v1",
